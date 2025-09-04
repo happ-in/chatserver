@@ -1,5 +1,7 @@
 package com.example.chatserver.member.controller;
 
+import com.example.chatserver.common.auth.JwtTokenProvider;
+import com.example.chatserver.member.dto.MemberLoginReqDto;
 import com.example.chatserver.member.dto.MemberSaveReqDto;
 import com.example.chatserver.member.service.MemberService;
 import org.springframework.http.HttpStatus;
@@ -11,18 +13,36 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.chatserver.member.domain.Member;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/member")
 public class MemberController {
     private final MemberService memberService;
+    private final JwtTokenProvider jwtTokenProvider;
 
-    public MemberController(MemberService memberService) {
+    public MemberController(MemberService memberService, JwtTokenProvider jwtTokenProvider) {
         this.memberService = memberService;
+        this.jwtTokenProvider = jwtTokenProvider;
     }
 
     @PostMapping("/create")
     public ResponseEntity<?> memberCreate(@RequestBody MemberSaveReqDto memberSaveReqDto) {
         Member member = memberService.create(memberSaveReqDto);
         return new ResponseEntity<>(member.getId(), HttpStatus.CREATED);
+    }
+
+    @PostMapping("/doLogin")
+    public ResponseEntity<?> login(@RequestBody MemberLoginReqDto memberLoginReqDto) {
+        // email, pwd 검증
+        Member member = memberService.login(memberLoginReqDto);
+        // 일치할 경우, 토큰 발급
+        String jwtToken = jwtTokenProvider.createToken(member.getEmail(), member.getRole().toString());
+        Map<String, Object> loginInfo = new HashMap<>();
+        loginInfo.put("id", member.getId());
+        loginInfo.put("token", jwtToken);
+
+        return new ResponseEntity<>(loginInfo, HttpStatus.OK);
     }
 }
